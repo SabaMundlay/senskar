@@ -1,0 +1,267 @@
+<html>
+<head>
+	<!-- ResponsiveVoice.JS -->
+	<script src='https://code.responsivevoice.org/responsivevoice.js'></script>
+	<!-- JQuery CDN-->
+	<script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+	<!-- Bootstrap CSS (CDN) -->
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+	<!-- Material Icons (CDN) -->
+	<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+	<!-- Saba Stylesheet -->
+	<link rel = "stylesheet" href = "static/style.css">
+
+</head>
+<body>
+	<div class = "container-fluid">
+    	<div class = "row">
+			<div class = "col-sm-4">
+				<canvas id="can" width="400" height="400"></canvas>
+			</div>
+			<div class = "col-sm-8">
+				<input id = "text" type = "text" name = "text" class = "text" placeholder = "What do you want to say...?">
+				<button class = "btn btn-default btn-custom" onclick="tts()"><i class = "material-icons material-icons-custom">mic</i></button>
+				<button class = "btn btn-default btn-custom" onclick = "erase()" id = "clear" value="Clear" id="clr"><i class = "material-icons material-icons-custom">refresh</i></button>
+			</div>
+		</div>
+	</div>
+    
+    <div class = "container-fluid">
+    	<div class = "row">
+    		<div class = "col-sm-12">
+    			<div id="suggestions"></div>
+    		</div>
+        </div>
+    </div>
+        	
+	<script type = "text/javascript">
+		var API_ENDPOINT = 'https://inputtools.google.com/request?ime=handwriting&app=autodraw&dbg=1&cs=1&oe=UTF-8';
+		var SVG_ENDPOINT = 'https://storage.googleapis.com/artlab-public.appspot.com/stencils/selman/';
+		var canvas;
+		var ctx;
+		var pressed = false;
+		var pressedAt = null;
+		var drawingInterval = null;
+		var intervalLastPosition = [-1, -1];
+		var shapes = [];
+		var currentShape = null;
+
+		var prevX = 0;
+		var currX = 0;
+		var prevY = 0;
+		var currY = 0;
+
+		var highlightStartPoint = false;
+
+		var dColor = "black";
+		var dStroke = 5;
+		var dColorStartingPoint = "black";
+
+		function tts() {
+			var user_input = document.getElementById("text").value;
+			console.log(user_input);
+			responsiveVoice.speak(user_input);
+		}
+
+		function init() {
+			canvas = document.getElementById("can");
+			ctx = canvas.getContext("2d");
+			w = canvas.width;
+			h = canvas.height;
+
+			//e is short for event, which is an "event" object
+			//the e object is keeping tracking of our 2d drawing
+			canvas.addEventListener("mousemove", function (e) {
+				drawXY("move", e)
+			}, false);
+
+			canvas.addEventListener("mousedown", function (e) {
+				drawXY("down", e)
+			}, false);
+
+			canvas.addEventListener("mouseup", function (e) {
+				drawXY("up", e)
+			}, false);
+
+			canvas.addEventListener("mouseout", function (e) {
+				drawXY("out", e)
+			}, false);
+		}
+
+		function prepareNewShape() {
+			currentShape = [
+				[],
+				[],
+				[]
+			]
+		}
+
+		function addPointToCurrentShape(x, y) {
+			currentShape[0].push(x);
+			currentShape[1].push(y);
+			currentShape[2].push(Date.now() - pressedAt);
+		}
+
+		function draw() {
+			ctx.beginPath();
+			ctx.moveTo(prevX, prevY);
+			ctx.lineTo(currX, currY);
+			ctx.strokeStyle = dColor;
+			ctx.fillStyle = dColor;
+			ctx.lineCap = "round";
+			ctx.lineJoin = "round";
+			ctx.lineWidth = dStroke;
+			ctx.stroke();
+			ctx.closePath();
+		}
+
+		function erase() {
+			ctx.clearRect(0, 0, w, h);
+			shapes = [];
+		}
+
+		function drawingShape() {
+			if (intervalLastPosition[0] == prevX && intervalLastPosition[1] == prevY) {	
+			} else {
+				addPointToCurrentShape(prevX, prevY);
+				intervalLastPosition = [prevX, prevY];
+			} //basically if the user has moved the mouse and drawn some more, move the position of the drawing interval
+		}
+
+		//res is direction, e is the event parameter
+		function drawXY(res, e) {
+			if (res == "down") {
+				console.log(canvas.offsetTop);
+				prevX = currX;
+				prevY = currY;
+				currX = e.clientX - canvas.offsetLeft;
+				currY = e.clientY; - canvas.offsetTop;
+				pressed = true;
+				pressedAt = Date.now();
+				highlightStartPoint = true;
+
+				prepareNewShape();
+				drawingInterval = setInterval(drawingShape, 9);
+
+				if (highlightStartPoint) {
+					ctx.beginPath();
+					ctx.fillStyle = dColorStartingPoint;
+					ctx.fillRect(currX, currY, 2, 2);
+					ctx.closePath();
+					highlightStartPoint = false;
+				}
+			}
+
+			if (res == "up" || (pressed && res == "out")) {
+				pressed = false;
+				commitCurrentShape();
+			}
+
+			if (res == "move") {
+				if (pressed) {
+					prevX = currX;
+					prevY = currY;
+					currX = e.clientX - canvas.offsetLeft;
+					currY = e.clientY - canvas.offsetTop;
+					draw();
+				}
+			}
+		}
+
+		function extractDataFromApi(data) {
+			var regex = /SCORESINKS: (.*) Service_Recognize:/
+			return JSON.parse(data[1][0][3].debug_info.match(regex)[1])
+		}
+
+		function commitCurrentShape() {
+			clearInterval(drawingInterval);
+			shapes.push(currentShape);
+			
+			var shapeDrawingTime = Date.now() - pressedAt;
+
+			jQuery.ajax({
+				url: API_ENDPOINT,
+				type: 'POST',
+				contentType: 'application/json; charset=utf-8',
+				dataType: 'json',
+				data: JSON.stringify({
+					input_type: 0,
+					requests: [{
+						language: 'autodraw',
+						writing_guide: {
+							"width": 400,
+							"height": 400 //this is the width and height of the canvas
+						},
+						ink: shapes
+					}]
+				}),
+
+				success: function(data) {
+					
+					if(data[0] !== 'SUCCESS') {
+						throw new Error(data);
+					}
+
+					var results = extractDataFromApi(data);
+					var parsedResults = results.map(function (result) {
+						var escapedName = result[0].replace(/ /g, '-');
+
+						return {
+							name: result[0],
+							confidence: result[1],
+							url: SVG_ENDPOINT + escapedName + '-01.svg',
+							url_variant_1: SVG_ENDPOINT + escapedName + '-02.svg',
+							url_variant_2: SVG_ENDPOINT + escapedName + '-03.svg'
+						};
+					});
+
+					displaySuggestions(parsedResults);
+				},
+				error: function(response) {
+					console.log(response);
+				}
+			});
+		}
+
+		function displaySuggestions(suggestions) {
+			var $suggestions = jQuery('#suggestions');
+			$suggestions.html('');
+
+			for (var i = 0; i < suggestions.length; i++) {
+				var suggestion = suggestions[i];
+				var $img = jQuery('<img />')
+					.attr('src', suggestion.url)
+					.attr('width', 80)
+					.attr('height', 80)
+					.css({
+						border: '1px solid black',
+					}).error(function(){
+						$(this).remove();
+					});
+
+				var $imgWrapper = jQuery('<div />')
+					.attr('style', 'width:80px;height80px;');
+				$imgWrapper.append($img);
+				$suggestions.append($imgWrapper);
+			}
+		}
+
+		function pickSuggestion(src) {
+			erase();
+			var img = new Image();
+			img.onload = function() {
+				ctx.drawImage(img, 0, 0);
+			}
+			img.src = src;
+		}
+
+		jQuery(function(){
+			init();
+			jQuery(document).on('click', '#suggestions img', function() {
+				pickSuggestion($(this).attr('src'));
+			});
+
+		});
+	</script>
+</body>
+</html>

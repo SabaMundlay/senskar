@@ -1,0 +1,61 @@
+body, html {
+	width: 100%;
+	height: 100%;
+	margin: 0;
+	padding: 0;
+	font-family: Verdana, Geneva, sans-serif;
+}
+
+.material-icons-custom {
+	font-size: 80px;
+	color: #4d4d4d;
+}
+
+.material-icons-custom:hover {
+	color: black;
+}
+
+.navbar-custom {
+	background: transparent;
+	border: none;
+}
+
+.text{
+	display: relative;
+	width: 90%;
+	height: 100px;
+	margin-top: 80px; /* needs to be the same as the font-size for material-icons-custom */
+	float: right;
+	background: transparent;
+	padding: 10%;
+	box-shadow: 5px 5px #4d4d4d;
+	border-radius: 15px;
+}
+
+#can {
+	position: absolute;
+	top: 10px;
+	margin-left: 30px;
+	border: 0.5px solid #4d4d4d;
+	border-radius: 15px;
+}
+
+#clear {
+	width:100px;
+	height:100px; 
+	margin-left: 30px;
+}
+
+#suggestions { 
+	width:100%;
+	height:100px;
+	overflow-x:auto;
+	display:flex;
+	margin-left: 30px;
+}
+
+#suggestions img { 
+	cursor: pointer; 
+}
+
+
