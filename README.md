@@ -4,4 +4,4 @@ Senskar is an app for communication through text and draw. Inspired by the iOS n
 
 to run the prototype locally, all you need is Flask. Once you've navigated to the directory the app is stored in, you can use a [number of commands](http://flask.pocoo.org/) to run the app. 
 
-![descrption]("Screenshot 2019-07-06 at 1.06.23 PM.png")
+![descrption](https://github.com/SabaMundlay/senskar/poster.png)
